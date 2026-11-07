@@ -13,6 +13,7 @@
 use std::path::Path;
 
 use regex::RegexSet;
+#[cfg(windows)]
 use windows_sys::Win32::Storage::FileSystem::{GetFileVersionInfoSizeW, GetFileVersionInfoW, VerQueryValueW};
 
 /// Programs that are never closed: Windows' own, and this app's (the tray app, its WebView2 and
@@ -110,6 +111,7 @@ impl ProgramList {
 
 /// The `OriginalFilename` stored in an executable's version information, if it has one. It is a
 /// property of the file contents rather than its path or current name.
+#[cfg(windows)]
 pub fn original_file_name(path: &Path) -> Option<String> {
     let mut file: Vec<u16> = path.as_os_str().to_string_lossy().encode_utf16().collect();
     file.push(0);
@@ -160,6 +162,13 @@ pub fn original_file_name(path: &Path) -> Option<String> {
             }
         }
     }
+    None
+}
+
+/// Version information is a Windows executable feature. The sync server only needs the shared
+/// parsing and matching rules, so it has no executable identity to inspect.
+#[cfg(not(windows))]
+pub fn original_file_name(_path: &Path) -> Option<String> {
     None
 }
 
