@@ -142,7 +142,9 @@ pub fn original_file_name(path: &Path) -> Option<String> {
     // SAFETY: the translation table is a nonempty sequence of UTF-16 language/code-page pairs
     // held by `data`, and the API gave its length in bytes.
     let translations = unsafe { std::slice::from_raw_parts(translations.cast::<u16>(), translation_bytes as usize / 2) };
-    for pair in translations.chunks_exact(2) {
+    // A malformed trailing code unit was ignored by `chunks_exact`; keep that behavior.
+    let (translations, _) = translations.as_chunks::<2>();
+    for pair in translations {
         let key = format!("\\StringFileInfo\\{:04x}{:04x}\\OriginalFilename", pair[0], pair[1]);
         if let Some((value, length)) = query(&key) {
             // For strings the length is UTF-16 code units, including the trailing NUL.

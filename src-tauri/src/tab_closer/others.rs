@@ -79,7 +79,7 @@ impl Closer {
             let original = process.exe().and_then(|path| {
                 self.original_names.entry(path.to_path_buf()).or_insert_with(|| programs::original_file_name(path)).as_deref()
             });
-            if pid == me || !(active.blocks_program_as(&process.name().to_string_lossy(), original.as_deref()) || in_a_blocked_app()) {
+            if pid == me || !(active.blocks_program_as(&process.name().to_string_lossy(), original) || in_a_blocked_app()) {
                 continue;
             }
             running.push(pid);
