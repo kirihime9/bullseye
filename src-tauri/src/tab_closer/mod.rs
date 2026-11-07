@@ -121,7 +121,7 @@ pub fn spawn(remote: Remote) {
                 // Steam's browser is a window found like one by title, in the same pass.
                 let titles = active.watches_titles() || active.closes_steam_browser();
                 if obsidian || programs || store_apps || titles {
-                    closer.scan_processes(obsidian, store_apps);
+                    closer.scan_processes(obsidian, programs || store_apps);
                 }
                 if obsidian {
                     closer.close_obsidian_with_web_content();
@@ -153,6 +153,9 @@ struct Closer {
     system: System,
     /// Programs that were asked to close, by process id and when, so the ones that do not are ended.
     asked: HashMap<u32, Instant>,
+    /// Executable path -> its version-information original filename. Reading version information
+    /// opens a file, so each executable is read once rather than once per process per pass.
+    original_names: HashMap<std::path::PathBuf, Option<String>>,
     /// Windows that were asked to close because of their title, by handle and when, so one that
     /// stays (it asks to save first) is asked again later, not every pass.
     titles_asked: HashMap<isize, Instant>,
@@ -214,6 +217,7 @@ impl Closer {
             windows: HashMap::new(),
             system: System::new(),
             asked: HashMap::new(),
+            original_names: HashMap::new(),
             titles_asked: HashMap::new(),
             minimize_asked: HashMap::new(),
             unminimizable: HashSet::new(),

@@ -116,7 +116,7 @@ Targets:
       --sites <sites>               The sites to block: each with its subdomains and everything
                                     under it, e.g. youtube.com. * as a wildcard.
       --allowed-sites <sites>       Sites that are always allowed, also when blocked.
-      --programs <names>            Programs to close, by exe name, e.g. steam.exe.
+      --programs <names>            Programs to close, by exe name, e.g. steam.exe. Renames match too.
       --store-apps <families>       Store apps to close, by their exact package family names, e.g.
                                     Microsoft.WindowsCalculator_8wekyb3d8bbwe, as 'target apps'
                                     shows them; no *.

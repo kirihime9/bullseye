@@ -3,12 +3,19 @@
 //! - Letter case is ignored, and only the file name counts, never a path: `steam.exe`.
 //! - `.exe` is added when it is missing: `discord` is `discord.exe`, `steam*` is `steam*.exe`.
 //! - `*` matches any characters: `*launcher.exe` covers `epiclauncher.exe` and `launcher.exe`.
+//! - When an executable has an `OriginalFilename` in its Windows version information, that name is
+//!   matched too. It lets a rule for `mpv.exe` survive renaming or copying that executable.
 //!
 //! Some programs must never be closed, because closing them breaks Windows or this app: they are
 //! listed in `PROTECTED`. An entry that would match any of them is refused when the session starts,
 //! which also refuses `*` and `*.exe` and the like, so a typo cannot take the desktop down.
 
+use std::path::Path;
+
 use regex::RegexSet;
+use windows_sys::Win32::Storage::FileSystem::{
+    GetFileVersionInfoSizeW, GetFileVersionInfoW, VerQueryValueW,
+};
 
 /// Programs that are never closed: Windows' own, and this app's (the tray app, its WebView2 and
 /// the service). Lower case, as the names are compared.
@@ -94,6 +101,69 @@ impl ProgramList {
         let name = file_name.to_lowercase();
         !is_protected(&name) && self.matchers.is_match(&name)
     }
+
+    /// As `is_blocked`, also considering the executable's original file name. Windows records
+    /// that name in signed and release-built programs' version information, and renaming or
+    /// copying the file does not change it.
+    pub fn is_blocked_as(&self, file_name: &str, original_name: Option<&str>) -> bool {
+        !is_protected(file_name)
+            && (self.is_blocked(file_name) || original_name.is_some_and(|name| self.is_blocked(name)))
+    }
+}
+
+/// The `OriginalFilename` stored in an executable's version information, if it has one. It is a
+/// property of the file contents rather than its path or current name.
+pub fn original_file_name(path: &Path) -> Option<String> {
+    let mut file: Vec<u16> = path.as_os_str().to_string_lossy().encode_utf16().collect();
+    file.push(0);
+    let mut ignored = 0;
+    // SAFETY: `file` is NUL-terminated and valid for the duration of these calls.
+    let size = unsafe { GetFileVersionInfoSizeW(file.as_ptr(), &mut ignored) };
+    if size == 0 {
+        return None;
+    }
+    let mut data = vec![0u8; size as usize];
+    // SAFETY: the buffer has exactly the byte length Windows requested above.
+    if unsafe { GetFileVersionInfoW(file.as_ptr(), 0, size, data.as_mut_ptr().cast()) } == 0 {
+        return None;
+    }
+    let query = |name: &str| {
+        let mut key: Vec<u16> = name.encode_utf16().chain(Some(0)).collect();
+        let mut value = std::ptr::null_mut();
+        let mut length = 0;
+        // SAFETY: `data` is a version-information block and `key` is NUL-terminated. Windows
+        // returns a pointer into `data`, which remains alive while this closure reads it.
+        let found = unsafe { VerQueryValueW(data.as_ptr().cast(), key.as_mut_ptr(), &mut value, &mut length) } != 0;
+        found.then_some((value, length))
+    };
+    let (translations, translation_bytes) = query("\\VarFileInfo\\Translation")?;
+    // `VerQueryValueW` reports the translation table's length in bytes (unlike a string, whose
+    // length is UTF-16 code units).
+    if translation_bytes == 0 {
+        return None;
+    }
+    // SAFETY: the translation table is a nonempty sequence of UTF-16 language/code-page pairs
+    // held by `data`, and the API gave its length in bytes.
+    let translations = unsafe {
+        std::slice::from_raw_parts(translations.cast::<u16>(), translation_bytes as usize / 2)
+    };
+    for pair in translations.chunks_exact(2) {
+        let key = format!("\\StringFileInfo\\{:04x}{:04x}\\OriginalFilename", pair[0], pair[1]);
+        if let Some((value, length)) = query(&key) {
+            // For strings the length is UTF-16 code units, including the trailing NUL.
+            if length == 0 {
+                continue;
+            }
+            // SAFETY: this nonempty string is held by `data`; the API reports its length in
+            // UTF-16 code units.
+            let value = unsafe { std::slice::from_raw_parts(value.cast::<u16>(), length as usize) };
+            let name = String::from_utf16_lossy(value).trim_end_matches('\0').trim().to_string();
+            if !name.is_empty() {
+                return Some(name);
+            }
+        }
+    }
+    None
 }
 
 /// The title of Steam's built-in browser window, whatever page it shows.
@@ -144,6 +214,21 @@ mod tests {
         assert!(!programs.is_blocked("notsteam.exe"));
         assert!(!programs.is_blocked("steam.exe.bak"));
         assert_eq!(programs.entries(), vec!["steam.exe", "discord.exe"]);
+    }
+
+    #[test]
+    fn original_file_name_matches_after_an_executable_is_renamed() {
+        let programs = list(&["mpv.exe"]);
+        assert!(programs.is_blocked_as("movie-player.exe", Some("mpv.exe")));
+        assert!(programs.is_blocked_as("MPV-COPY.EXE", Some("MPV.EXE")));
+        assert!(!programs.is_blocked_as("movie-player.exe", Some("vlc.exe")));
+        assert!(!programs.is_blocked_as("movie-player.exe", None));
+    }
+
+    #[test]
+    fn original_file_name_never_overrides_protection() {
+        let programs = list(&["mpv.exe"]);
+        assert!(!programs.is_blocked_as("explorer.exe", Some("mpv.exe")));
     }
 
     #[test]

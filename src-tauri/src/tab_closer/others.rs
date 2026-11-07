@@ -18,7 +18,8 @@ use windows_sys::Win32::UI::WindowsAndMessaging::{PostMessageW, ShowWindowAsync,
 impl Closer {
     /// Looks at the running programs, once, for the checks below (`close_obsidian_with_web_content`,
     /// `close_processes`, `close_windows_by_title`). Command lines are only fetched when Obsidian's
-    /// check needs them, and where each program is only when Store apps are to be closed.
+    /// check needs them, and where each program is only when Store apps or executable identities
+    /// need to be checked.
     pub(super) fn scan_processes(&mut self, command_lines: bool, locations: bool) {
         let mut kind = ProcessRefreshKind::nothing();
         if command_lines {
@@ -75,7 +76,15 @@ impl Closer {
         for (pid, process) in self.system.processes() {
             let pid = pid.as_u32();
             let in_a_blocked_app = || process.exe().and_then(store_apps::family_of).is_some_and(|family| active.blocks_store_app(&family));
-            if pid == me || !(active.blocks_program(&process.name().to_string_lossy()) || in_a_blocked_app()) {
+            let original = process.exe().and_then(|path| {
+                self.original_names
+                    .entry(path.to_path_buf())
+                    .or_insert_with(|| programs::original_file_name(path))
+                    .as_deref()
+            });
+            if pid == me
+                || !(active.blocks_program_as(&process.name().to_string_lossy(), original.as_deref()) || in_a_blocked_app())
+            {
                 continue;
             }
             running.push(pid);

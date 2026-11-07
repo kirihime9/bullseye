@@ -197,10 +197,16 @@ impl Active {
 
     /// Whether a program (by file name) is closed by any session that closes programs.
     pub fn blocks_program(&self, file_name: &str) -> bool {
+        self.blocks_program_as(file_name, None)
+    }
+
+    /// Whether a program is closed by its current or original executable file name. The latter is
+    /// read from the executable's version information and survives a rename or copy.
+    pub fn blocks_program_as(&self, file_name: &str, original_name: Option<&str>) -> bool {
         self.judge(
             |b| b.actions.uses(Uses::Programs),
-            |b| b.lists.programs.is_blocked(file_name),
-            |lists| lists.programs.is_blocked(file_name),
+            |b| b.lists.programs.is_blocked_as(file_name, original_name),
+            |lists| lists.programs.is_blocked_as(file_name, original_name),
         )
     }
 

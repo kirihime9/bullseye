@@ -406,7 +406,7 @@ window.STRINGS = {
     programs: {
       label: "Programs to close", // reviewed
       placeholder: "steam.exe", // reviewed
-      helper: "One per line. * matches any part. Windows programs cannot be added", // reviewed
+      helper: "One per line. * matches any part. Renamed and copied programs are matched by their original name. Windows programs cannot be added", // reviewed
       count: { one: "{n} program closed", other: "{n} programs closed" }, // reviewed
     },
     store_apps: {

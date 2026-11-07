@@ -86,7 +86,7 @@ With `edit`, an option replaces only what it names: `--targets` replaces all its
 |---|---|---|
 | `--sites <sites>` | The sites to block: each site, its subdomains and everything under it (`youtube.com` is `www.youtube.com` and `music.youtube.com` too), with `*` as a wildcard as in the window: `reddit.com/r/*`, `*` (every site). `*.reddit.com` is the subdomains only. An exception for one subdomain goes in `--allowed-sites`. | none |
 | `--allowed-sites <sites>` | Sites that are always allowed, also when this list's sites match them. | none |
-| `--programs <names>` | Programs to close, by exe name: `steam`, `steam*.exe`. | none |
+| `--programs <names>` | Programs to close, by exe name: `steam`, `steam*.exe`. When an executable records its original filename, renamed or copied copies still match it. | none |
 | `--store-apps <families>` | Store apps to close, by their exact package family names, as `target apps` shows the installed ones: `Microsoft.WindowsCalculator_8wekyb3d8bbwe`. No `*`, as in the window, where they are ticked. Windows' own apps are never closed. | none |
 | `--titles <titles>` | Windows to close, by their title, the whole title with `*` as a wildcard and letter case ignored: `*YouTube*`. The whole window closes, or is minimized (`--actions`), a browser's with all its tabs. A lone `*` matches every window but Bullseye's own and Windows' shell. | none |
 | `--allowed-titles <titles>` | Window titles that are always left alone, also when this list's titles match them, written as in `--titles`: `*Visual Studio Code`. | none |
