@@ -77,14 +77,9 @@ impl Closer {
             let pid = pid.as_u32();
             let in_a_blocked_app = || process.exe().and_then(store_apps::family_of).is_some_and(|family| active.blocks_store_app(&family));
             let original = process.exe().and_then(|path| {
-                self.original_names
-                    .entry(path.to_path_buf())
-                    .or_insert_with(|| programs::original_file_name(path))
-                    .as_deref()
+                self.original_names.entry(path.to_path_buf()).or_insert_with(|| programs::original_file_name(path)).as_deref()
             });
-            if pid == me
-                || !(active.blocks_program_as(&process.name().to_string_lossy(), original.as_deref()) || in_a_blocked_app())
-            {
+            if pid == me || !(active.blocks_program_as(&process.name().to_string_lossy(), original.as_deref()) || in_a_blocked_app()) {
                 continue;
             }
             running.push(pid);

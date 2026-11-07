@@ -13,9 +13,7 @@
 use std::path::Path;
 
 use regex::RegexSet;
-use windows_sys::Win32::Storage::FileSystem::{
-    GetFileVersionInfoSizeW, GetFileVersionInfoW, VerQueryValueW,
-};
+use windows_sys::Win32::Storage::FileSystem::{GetFileVersionInfoSizeW, GetFileVersionInfoW, VerQueryValueW};
 
 /// Programs that are never closed: Windows' own, and this app's (the tray app, its WebView2 and
 /// the service). Lower case, as the names are compared.
@@ -106,8 +104,7 @@ impl ProgramList {
     /// that name in signed and release-built programs' version information, and renaming or
     /// copying the file does not change it.
     pub fn is_blocked_as(&self, file_name: &str, original_name: Option<&str>) -> bool {
-        !is_protected(file_name)
-            && (self.is_blocked(file_name) || original_name.is_some_and(|name| self.is_blocked(name)))
+        !is_protected(file_name) && (self.is_blocked(file_name) || original_name.is_some_and(|name| self.is_blocked(name)))
     }
 }
 
@@ -144,9 +141,7 @@ pub fn original_file_name(path: &Path) -> Option<String> {
     }
     // SAFETY: the translation table is a nonempty sequence of UTF-16 language/code-page pairs
     // held by `data`, and the API gave its length in bytes.
-    let translations = unsafe {
-        std::slice::from_raw_parts(translations.cast::<u16>(), translation_bytes as usize / 2)
-    };
+    let translations = unsafe { std::slice::from_raw_parts(translations.cast::<u16>(), translation_bytes as usize / 2) };
     for pair in translations.chunks_exact(2) {
         let key = format!("\\StringFileInfo\\{:04x}{:04x}\\OriginalFilename", pair[0], pair[1]);
         if let Some((value, length)) = query(&key) {
